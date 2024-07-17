@@ -7,8 +7,7 @@ from streamlit_float import *
 st.set_page_config(page_title="Contract Review Interface", layout="wide")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# initialize float feature/capability
-float_init()
+
 
 def read_from_sheets(worksheet="Data"):
     df = conn.read(spreadsheet=st.secrets["spreadsheet"], worksheet=worksheet, ttl=1)
@@ -97,21 +96,25 @@ def display_guidelines(guideline):
     st.subheader(f"Guideline {st.session_state.current_guideline + 1} of {len(st.session_state.guidelines)}")
     st.write(guideline["guideline"])
 
-    guideline["guideline_quality"] = st.selectbox(
-        "Guideline Quality", ["Pending", "Excellent", "Good", "Better", "Bad"],
+    guideline_quality = st.selectbox(
+        "Guideline Quality", ("Pending", "Excellent", "Good", "Better", "Bad"),
         index=["Pending", "Excellent", "Good", "Better", "Bad"].index(guideline["guideline_quality"]) if "guideline_quality" in guideline else 0,
     )
-
-    guideline["guideline_improvement"] = st.selectbox(
-        "What can be improved in the guideline?",
-        ["Clarity", "Specificity", "Relevance", "Other"],
-        index=["Clarity", "Specificity", "Relevance", "Other"].index(guideline.get("guideline_improvement", "Clarity")),
-    )
-
-    if guideline["guideline_improvement"] == "Other":
-        guideline["guideline_improvement"] = st.text_input(
-            "Specify other guideline improvement:"
+    print(guideline_quality)
+    print("GUIDELINE", guideline["guideline_quality"])
+    guideline["guideline_quality"] = guideline_quality
+    print("GUIDELINE", guideline["guideline_quality"])
+    if guideline["guideline_quality"] in ["Better", "Bad"]:
+        guideline["guideline_improvement"] = st.selectbox(
+            "What can be improved in the guideline?",
+            ["Clarity", "Specificity", "Relevance", "Other"],
+            index=["Clarity", "Specificity", "Relevance", "Other"].index(guideline.get("guideline_improvement", "Clarity")),
         )
+
+        if guideline["guideline_improvement"] == "Other":
+            guideline["guideline_improvement"] = st.text_input(
+                "Specify other guideline improvement:"
+            )
 
     guideline["status"] = st.radio(
         "Guideline Status",
@@ -184,6 +187,7 @@ def display_guidelines(guideline):
 
 
     st.session_state.guidelines[st.session_state.current_guideline] = guideline
+    # print("GUIDELINE", guideline)
     return guideline
 
 
@@ -200,14 +204,14 @@ def main():
         st.session_state.guidelines = read_from_sheets().to_dict("records")
 
     # Create two columns
-    col1, col2 = st.columns(2)
+    # col1, col2 = st.columns(2)
 
-    with col1:
-        contract = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
-        display_contract(contract)
+    # with col1:
+    contract = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
+    display_contract(contract)
 
-    col2.float()
-    with col2:
+    # col2.float()
+    with st.sidebar:
         updated_guideline = display_guidelines(st.session_state.guidelines[st.session_state.current_guideline])
 
         # Save button
