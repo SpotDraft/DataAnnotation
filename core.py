@@ -21,7 +21,7 @@ def update_or_append_to_sheets(values, worksheet="ReviewResults"):
     guideline_id = values[0]  # Assuming the ID is the first element in values
     if existing_data.empty:
         # Initialize the data frame with the first row
-        existing_data = pd.DataFrame(columns=["id", "description", "status", "reason", "reason_quality", "reason_improvement_other", "comment", "comment_quality", "comment_improvement_other", "selected_sources", "update_clause_improvement_other"])
+        existing_data = pd.DataFrame(columns=["id", "guideline", "guideline_quality", "guideline_improvement", "status", "reason", "reason_quality", "reason_improvement_other", "comment", "comment_quality", "comment_improvement_other", "selected_sources", "update_clause_improvement_other"])
     existing_row = existing_data[existing_data['id'] == guideline_id]
 
     if len(existing_row) > 0:
@@ -38,7 +38,9 @@ def update_or_append_to_sheets(values, worksheet="ReviewResults"):
 def save_guideline(guideline):
     data_to_write = [
         guideline["id"],  # Unique ID for the guideline
-        guideline["description"],
+        guideline["guideline"],
+        guideline["guideline_quality"],
+        guideline["guideline_improvement"],
         guideline["status"],
         guideline["reason"],
         guideline["reason_quality"],
@@ -90,11 +92,26 @@ def display_contract(contract):
         st.write("Selected Sources:", ", ".join(sorted(st.session_state.selected_sources)))
 
 def display_guidelines(guideline):
-    print("GUIDELINE", guideline)
     st.header("Guidelines")
 
     st.subheader(f"Guideline {st.session_state.current_guideline + 1} of {len(st.session_state.guidelines)}")
-    st.write(guideline["description"])
+    st.write(guideline["guideline"])
+
+    guideline["guideline_quality"] = st.selectbox(
+        "Guideline Quality", ["Pending", "Excellent", "Good", "Better", "Bad"],
+        index=["Pending", "Excellent", "Good", "Better", "Bad"].index(guideline["guideline_quality"]) if "guideline_quality" in guideline else 0,
+    )
+
+    guideline["guideline_improvement"] = st.selectbox(
+        "What can be improved in the guideline?",
+        ["Clarity", "Specificity", "Relevance", "Other"],
+        index=["Clarity", "Specificity", "Relevance", "Other"].index(guideline.get("guideline_improvement", "Clarity")),
+    )
+
+    if guideline["guideline_improvement"] == "Other":
+        guideline["guideline_improvement"] = st.text_input(
+            "Specify other guideline improvement:"
+        )
 
     guideline["status"] = st.radio(
         "Guideline Status",
@@ -146,7 +163,9 @@ def display_guidelines(guideline):
             )
         else:
             guideline["comment_improvement_other"] = comment_improvement
-
+    guideline["update_clause_text"] = st.text_area(
+        "Updated Clause Text", value=guideline["update_clause_text"], height=100
+    )
     update_clause = st.radio("Update Clause Text", ["Correct", "Incorrect"])
     if update_clause == "Incorrect":
         update_clause_improvement = st.selectbox(
@@ -165,7 +184,6 @@ def display_guidelines(guideline):
 
 
     st.session_state.guidelines[st.session_state.current_guideline] = guideline
-    print("AFTER GUIDELINE", guideline)
     return guideline
 
 
@@ -190,8 +208,6 @@ def main():
 
     col2.float()
     with col2:
-        print("GUIDELINE", st.session_state.current_guideline)
-        st.write(st.session_state.current_guideline)
         updated_guideline = display_guidelines(st.session_state.guidelines[st.session_state.current_guideline])
 
         # Save button
@@ -203,12 +219,12 @@ def main():
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             if st.button("Previous") and st.session_state.current_guideline > 0:
-                save_guideline(updated_guideline)
+                # save_guideline(updated_guideline)
                 st.session_state.current_guideline -= 1
                 st.rerun()
         with col3:
             if st.button("Next") and st.session_state.current_guideline < len(st.session_state.guidelines) - 1:
-                save_guideline(updated_guideline)
+                # save_guideline(updated_guideline)
                 st.session_state.current_guideline += 1
                 st.rerun()
 
