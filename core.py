@@ -8,6 +8,33 @@ st.set_page_config(page_title="Contract Review Interface", layout="wide")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 
+def initialize_guideline(guideline):
+    default_values = {
+        "id": "",
+        "guideline": "",
+        "guideline_quality": "Pending",
+        "guideline_improvement": "NA",
+        "guideline_improvement_other": "",
+        "status": "NOT_APPLICABLE",
+        "reason": "",
+        "reason_quality": "Pending",
+        "reason_improvement": "NA",
+        "reason_improvement_other": "",
+        "comment": "",
+        "comment_quality": "Pending",
+        "comment_improvement": "NA",
+        "comment_improvement_other": "",
+        "update_clause_text": "",
+        "update_clause_improvement": "NA",
+        "update_clause_improvement_other": "",
+        "selected_sources": [],
+    }
+
+    for key, default_value in default_values.items():
+        if key not in guideline:
+            guideline[key] = default_value
+
+    return guideline
 
 def read_from_sheets(worksheet="Data"):
     df = conn.read(spreadsheet=st.secrets["spreadsheet"], worksheet=worksheet, ttl=1)
@@ -20,9 +47,9 @@ def update_or_append_to_sheets(values, worksheet="ReviewResults"):
     guideline_id = values[0]  # Assuming the ID is the first element in values
     if existing_data.empty:
         # Initialize the data frame with the first row
-        existing_data = pd.DataFrame(columns=["id", "guideline", "guideline_quality", "guideline_improvement", "status", "reason", "reason_quality", "reason_improvement_other", "comment", "comment_quality", "comment_improvement_other", "selected_sources", "update_clause_improvement_other"])
+        existing_data = pd.DataFrame(columns=["id", "guideline", "guideline_quality", "guideline_improvement", "guideline_improvement_other", "status", "reason", "reason_quality", "reason_improvement_other", "comment", "comment_quality", "comment_improvement_other", "selected_sources", "update_clause_text", "update_clause_improvement", "update_clause_improvement_other"])
     existing_row = existing_data[existing_data['id'] == guideline_id]
-
+    print(values)
     if len(existing_row) > 0:
         # Update existing row
         existing_data.loc[existing_data['id'] == guideline_id] = values
@@ -40,6 +67,7 @@ def save_guideline(guideline):
         guideline["guideline"],
         guideline["guideline_quality"],
         guideline["guideline_improvement"],
+        guideline.get("guideline_improvement_other", ""),
         guideline["status"],
         guideline["reason"],
         guideline["reason_quality"],
@@ -48,13 +76,21 @@ def save_guideline(guideline):
         guideline["comment_quality"],
         guideline.get("comment_improvement_other", ""),
         ",".join(guideline["selected_sources"]),
+        guideline["update_clause_text"],
+        guideline["update_clause_improvement"],
         guideline.get("update_clause_improvement_other", ""),
     ]
     update_or_append_to_sheets(data_to_write)
 
 
-def display_contract(contract):
+def display_contract():
     st.header("Contract")
+
+    contract = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
+    selected_sources = st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"]
+
+    def update_selected_sources(key):
+        st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"].append(key.split("_")[-1])
 
     # Custom CSS for scrollable container
     st.markdown("""
@@ -67,7 +103,6 @@ def display_contract(contract):
         }
         </style>
     """, unsafe_allow_html=True)
-
     # Create a scrollable container using st.expander
     with st.expander("Contract Text", expanded=True):
         contract_paragraphs = contract.split("\n")
@@ -75,14 +110,14 @@ def display_contract(contract):
         for i, paragraph in enumerate(contract_paragraphs):
             col1, col2 = st.columns([0.1, 0.9])
             with col1:
-                is_selected = str(i) in st.session_state.get('selected_sources', set())
-                if st.checkbox("", value=is_selected, key=f"source_{i}"):
-                    if 'selected_sources' not in st.session_state:
-                        st.session_state.selected_sources = set()
-                    st.session_state.selected_sources.add(str(i))
-                else:
-                    if 'selected_sources' in st.session_state:
-                        st.session_state.selected_sources.discard(str(i))
+                is_selected = str(i) in selected_sources
+                st.checkbox(
+                    "",
+                    value=is_selected,
+                    key=f"selected_source_{i}",
+                    on_change=update_selected_sources,
+                args=(f'selected_source_{i}',))
+
             with col2:
                 st.write(paragraph)
 
@@ -90,104 +125,141 @@ def display_contract(contract):
     if 'selected_sources' in st.session_state and st.session_state.selected_sources:
         st.write("Selected Sources:", ", ".join(sorted(st.session_state.selected_sources)))
 
-def display_guidelines(guideline):
+def display_guidelines():
     st.header("Guidelines")
 
+    # Give option to select a guideline to review
+
+
+
+
+    guideline = st.session_state.guidelines[st.session_state.current_guideline]
     st.subheader(f"Guideline {st.session_state.current_guideline + 1} of {len(st.session_state.guidelines)}")
     st.write(guideline["guideline"])
 
-    guideline_quality = st.selectbox(
-        "Guideline Quality", ("Pending", "Excellent", "Good", "Better", "Bad"),
-        index=["Pending", "Excellent", "Good", "Better", "Bad"].index(guideline["guideline_quality"]) if "guideline_quality" in guideline else 0,
+    def update_selectbox(key):
+        st.session_state.guidelines[st.session_state.current_guideline][key] = st.session_state[f"{key}_{st.session_state.current_guideline}"]
+
+    # Guideline Quality
+    st.selectbox(
+        f"Guideline Quality: {guideline['guideline_quality']}",
+        ("Pending", "Excellent", "Good", "Better", "Bad"),
+        key=f"guideline_quality_{st.session_state.current_guideline}",
+        on_change=update_selectbox,
+        args=('guideline_quality',),
+        index=["Pending", "Excellent", "Good", "Better", "Bad"].index(guideline['guideline_quality']),
     )
-    print(guideline_quality)
-    print("GUIDELINE", guideline["guideline_quality"])
-    guideline["guideline_quality"] = guideline_quality
-    print("GUIDELINE", guideline["guideline_quality"])
-    if guideline["guideline_quality"] in ["Better", "Bad"]:
-        guideline["guideline_improvement"] = st.selectbox(
+
+    if guideline['guideline_quality'] in ["Better", "Bad"]:
+        st.selectbox(
             "What can be improved in the guideline?",
-            ["Clarity", "Specificity", "Relevance", "Other"],
-            index=["Clarity", "Specificity", "Relevance", "Other"].index(guideline.get("guideline_improvement", "Clarity")),
+            ["NA", "Clarity", "Specificity", "Relevance", "Other"],
+            key=f"guideline_improvement_{st.session_state.current_guideline}",
+            on_change=update_selectbox,
+            args=('guideline_improvement',),
+            index=["NA", "Clarity", "Specificity", "Relevance", "Other"].index(guideline['guideline_improvement']),
         )
 
         if guideline["guideline_improvement"] == "Other":
-            guideline["guideline_improvement"] = st.text_input(
-                "Specify other guideline improvement:"
+            guideline["guideline_improvement_other"] = st.text_input(
+                "Specify other guideline improvement:",
+                value=guideline["guideline_improvement_other"]
             )
 
-    guideline["status"] = st.radio(
+    # Guideline Status
+    st.radio(
         "Guideline Status",
         ["FOLLOWED", "NOT_FOLLOWED", "NOT_APPLICABLE"],
-        index=["FOLLOWED", "NOT_FOLLOWED", "NOT_APPLICABLE"].index(guideline["status"]) if "status" in guideline else 2,
+        key=f"status_{st.session_state.current_guideline}",
+        on_change=update_selectbox,
+        args=('status',),
+        index=["FOLLOWED", "NOT_FOLLOWED", "NOT_APPLICABLE"].index(guideline['status']),
     )
 
     st.write(
         "Selected Sources:",
-        ", ".join([f"Paragraph {i}" for i in st.session_state.selected_sources]),
+        ", ".join([f"Paragraph {i}" for i in guideline['selected_sources']]),
     )
 
     guideline["reason"] = st.text_area(
         "Reason", value=guideline["reason"], height=100
     )
-    guideline["reason_quality"] = st.selectbox(
-        "Reason Quality", ["Pending", "Excellent", "Good", "Better", "Bad"],
-        index=["Pending", "Excellent", "Good", "Better", "Bad"].index(guideline["reason_quality"]) if "reason_quality" in guideline else 0,
+
+    # Reason Quality
+    st.selectbox(
+        "Reason Quality",
+        ["Pending", "Excellent", "Good", "Better", "Bad"],
+        key=f"reason_quality_{st.session_state.current_guideline}",
+        on_change=update_selectbox,
+        args=('reason_quality',),
+        index=["Pending", "Excellent", "Good", "Better", "Bad"].index(guideline['reason_quality']),
     )
+
     if guideline["reason_quality"] in ["Better", "Bad"]:
-        reason_improvement = st.selectbox(
+        st.selectbox(
             "What can be improved in the reason?",
-            ["Clarity", "Specificity", "Relevance", "Other"],
-            index=["Clarity", "Specificity", "Relevance", "Other"].index(guideline.get("reason_improvement", "Clarity")),
+            ["NA", "Clarity", "Specificity", "Relevance", "Other"],
+            key=f"reason_improvement_{st.session_state.current_guideline}",
+            on_change=update_selectbox,
+            args=('reason_improvement',),
+            index=["NA", "Clarity", "Specificity", "Relevance", "Other"].index(guideline['reason_improvement']),
         )
-        if reason_improvement == "Other":
+        if guideline["reason_improvement"] == "Other":
             guideline["reason_improvement_other"] = st.text_input(
-                "Specify other reason for improvement:"
+                "Specify other reason for improvement:",
+                value=guideline["reason_improvement_other"]
             )
-        else:
-            guideline["reason_improvement_other"] = reason_improvement
 
     guideline["comment"] = st.text_area(
         "Comment", value=guideline["comment"], height=100
     )
-    guideline["comment_quality"] = st.selectbox(
-        "Comment Quality", ["Pending", "Excellent", "Good", "Better", "Bad"],
-        index=["Pending", "Excellent", "Good", "Better", "Bad"].index(guideline["comment_quality"]) if "comment_quality" in guideline else 0,
+
+    # Comment Quality
+    st.selectbox(
+        "Comment Quality",
+        ["Pending", "Excellent", "Good", "Better", "Bad"],
+        key=f"comment_quality_{st.session_state.current_guideline}",
+        on_change=update_selectbox,
+        args=('comment_quality',),
+        index=["Pending", "Excellent", "Good", "Better", "Bad"].index(guideline['comment_quality']),
     )
+
     if guideline["comment_quality"] in ["Better", "Bad"]:
-        comment_improvement = st.selectbox(
+        st.selectbox(
             "What can be improved in the comment?",
-            ["Clarity", "Detail", "Relevance", "Other"],
-            index=["Clarity", "Detail", "Relevance", "Other"].index(guideline.get("comment_improvement", "Clarity")),
+            ["NA", "Clarity", "Detail", "Relevance", "Other"],
+            key=f"comment_improvement_{st.session_state.current_guideline}",
+            on_change=update_selectbox,
+            args=('comment_improvement',),
+            index=["NA", "Clarity", "Detail", "Relevance", "Other"].index(guideline['comment_improvement']),
         )
-        if comment_improvement == "Other":
+        if guideline["comment_improvement"] == "Other":
             guideline["comment_improvement_other"] = st.text_input(
-                "Specify other comment improvement:"
+                "Specify other comment improvement:",
+                value=guideline["comment_improvement_other"]
             )
-        else:
-            guideline["comment_improvement_other"] = comment_improvement
+
     guideline["update_clause_text"] = st.text_area(
         "Updated Clause Text", value=guideline["update_clause_text"], height=100
     )
+
     update_clause = st.radio("Update Clause Text", ["Correct", "Incorrect"])
     if update_clause == "Incorrect":
-        update_clause_improvement = st.selectbox(
+        st.selectbox(
             "What can be improved in the updated clause text?",
-            ["Changes too extensive", "Does not meet guideline", "Content inaccuracies", "Other"],
-            index=["Changes too extensive", "Does not meet guideline", "Content inaccuracies", "Other"].index(guideline.get("update_clause_improvement", "Changes too extensive")),
+            ["NA", "Changes too extensive", "Does not meet guideline", "Content inaccuracies", "Other"],
+            key=f"update_clause_improvement_{st.session_state.current_guideline}",
+            on_change=update_selectbox,
+            args=('update_clause_improvement',),
+            index=["NA", "Changes too extensive", "Does not meet guideline", "Content inaccuracies", "Other"].index(guideline['update_clause_improvement']),
         )
-        if update_clause_improvement == "Other":
+        if guideline["update_clause_improvement"] == "Other":
             guideline["update_clause_improvement_other"] = st.text_input(
-                "Specify other update clause improvement:"
+                "Specify other update clause improvement:",
+                value=guideline["update_clause_improvement_other"]
             )
-        else:
-            guideline["update_clause_improvement_other"] = update_clause_improvement
-
-    guideline["selected_sources"] = list(st.session_state.selected_sources)
-
 
     st.session_state.guidelines[st.session_state.current_guideline] = guideline
-    # print("GUIDELINE", guideline)
     return guideline
 
 
@@ -201,18 +273,31 @@ def main():
         st.session_state.selected_sources = set()
     if "guidelines" not in st.session_state:
         # Assume the guidelines data now includes a unique ID for each guideline
-        st.session_state.guidelines = read_from_sheets().to_dict("records")
+        guidelines = read_from_sheets().to_dict("records")
+        st.session_state.guidelines = [initialize_guideline(g) for g in guidelines]
 
     # Create two columns
     # col1, col2 = st.columns(2)
 
     # with col1:
     contract = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
-    display_contract(contract)
+    display_contract()
 
     # col2.float()
     with st.sidebar:
-        updated_guideline = display_guidelines(st.session_state.guidelines[st.session_state.current_guideline])
+        def update_current_guideline():
+            st.session_state.current_guideline = st.session_state.guideline_number - 1
+
+        st.number_input(
+            "Guideline Number",
+            min_value=1,
+            max_value=len(st.session_state.guidelines),
+            value=st.session_state.current_guideline + 1,
+            key="guideline_number",
+            on_change=update_current_guideline,
+        )
+
+        updated_guideline = display_guidelines()
 
         # Save button
         if st.button("Save"):
@@ -223,12 +308,12 @@ def main():
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             if st.button("Previous") and st.session_state.current_guideline > 0:
-                # save_guideline(updated_guideline)
+                save_guideline(updated_guideline)
                 st.session_state.current_guideline -= 1
                 st.rerun()
         with col3:
             if st.button("Next") and st.session_state.current_guideline < len(st.session_state.guidelines) - 1:
-                # save_guideline(updated_guideline)
+                save_guideline(updated_guideline)
                 st.session_state.current_guideline += 1
                 st.rerun()
 
