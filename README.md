@@ -25,8 +25,8 @@ This Streamlit application provides an interface for reviewing contracts against
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/contract-review-interface.git
-   cd contract-review-interface
+   git clone https://github.com/SpotDraft/DataAnnotation.git
+   cd DataAnnotation
    ```
 
 2. Install the required packages:
