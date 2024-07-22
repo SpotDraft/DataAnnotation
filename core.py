@@ -91,7 +91,7 @@ def display_contract():
 
     def update_selected_sources(key):
         st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"].append(key.split("_")[-1])
-
+        st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"] = list(set(st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"]))
     # Custom CSS for scrollable container
     st.markdown("""
         <style>
