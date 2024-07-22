@@ -90,8 +90,13 @@ def display_contract():
     selected_sources = st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"]
 
     def update_selected_sources(key):
-        st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"].append(key.split("_")[-1])
-        st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"] = list(set(st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"]))
+        # Only if the checkbox is checked, if unchecked, remove from selected_sources,
+        if st.session_state[key]:
+            st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"].append(key.split("_")[-1])
+        else:
+            st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"].remove(key.split("_")[-1])
+
+
     # Custom CSS for scrollable container
     st.markdown("""
         <style>
