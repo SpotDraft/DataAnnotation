@@ -41,6 +41,7 @@ def read_from_sheets(worksheet="Data"):
     return df
 
 def update_or_append_to_sheets(values, worksheet="ReviewResults"):
+    worksheet = f"ReviewResults_{st.session_state.reviewer_name}"
     existing_data = read_from_sheets(worksheet)
 
     # Check if the guideline ID already exists
@@ -49,7 +50,6 @@ def update_or_append_to_sheets(values, worksheet="ReviewResults"):
         # Initialize the data frame with the first row
         existing_data = pd.DataFrame(columns=["id", "guideline", "guideline_quality", "guideline_improvement", "guideline_improvement_other", "status", "reason", "reason_quality", "reason_improvement_other", "comment", "comment_quality", "comment_improvement_other", "selected_sources", "update_clause_text", "update_clause_improvement", "update_clause_improvement_other"])
     existing_row = existing_data[existing_data['id'] == guideline_id]
-    print(values)
     if len(existing_row) > 0:
         # Update existing row
         existing_data.loc[existing_data['id'] == guideline_id] = values
@@ -275,6 +275,12 @@ def main():
         # Assume the guidelines data now includes a unique ID for each guideline
         guidelines = read_from_sheets().to_dict("records")
         st.session_state.guidelines = [initialize_guideline(g) for g in guidelines]
+
+    # Ask for reviewer name
+
+    name = st.text_input("Enter your name:")
+    # Add reviewer name to session state
+    st.session_state["reviewer_name"] = name
 
     # Create two columns
     # col1, col2 = st.columns(2)
