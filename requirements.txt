@@ -3,3 +3,4 @@ st-gsheets-connection==0.0.4
 pandas==1.5.3
 numpy==1.26.4
 requests==2.27.1
+pydantic==1.10.2
