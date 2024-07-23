@@ -2,6 +2,7 @@
 
 import streamlit as st
 import pandas as pd
+import requests
 from streamlit_gsheets import GSheetsConnection
 from streamlit_float import *
 st.set_page_config(page_title="Contract Review Interface", layout="wide")
@@ -82,11 +83,17 @@ def save_guideline(guideline):
     ]
     update_or_append_to_sheets(data_to_write)
 
+@st.cache
+def get_file_content(file_url):
+    return requests.get(file_url).text
 
 def display_contract():
     st.header("Contract")
 
-    contract = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
+    contract_link = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
+    # Fetch the contract from the URL link
+    contract = get_file_content(contract_link)
+
     selected_sources = st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"]
 
     def update_selected_sources(key):
@@ -134,9 +141,6 @@ def display_guidelines():
     st.header("Guidelines")
 
     # Give option to select a guideline to review
-
-
-
 
     guideline = st.session_state.guidelines[st.session_state.current_guideline]
     st.subheader(f"Guideline {st.session_state.current_guideline + 1} of {len(st.session_state.guidelines)}")
