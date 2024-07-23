@@ -4,7 +4,6 @@ import streamlit as st
 import pandas as pd
 import requests
 from streamlit_gsheets import GSheetsConnection
-from streamlit_float import *
 st.set_page_config(page_title="Contract Review Interface", layout="wide")
 conn = st.connection("gsheets", type=GSheetsConnection)
 import json
