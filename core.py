@@ -168,9 +168,9 @@ def display_contract(contract):
     # Create a scrollable container using st.expander
     with st.expander("Contract Text", expanded=True):
         contract_paragraphs = contract.split("\n")
-
+        col1, col2 = st.columns([0.1, 0.9])
         for i, paragraph in enumerate(contract_paragraphs):
-            col1, col2 = st.columns([0.1, 0.9])
+
             with col1:
                 is_selected = str(i) in selected_sources
                 st.checkbox(
