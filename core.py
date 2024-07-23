@@ -58,6 +58,7 @@ class WordServerClient:
     def preprocess_text(self, converted_text: str) -> str:
         return converted_text
 
+
 @st.cache_data
 def word_server_client(file_url):
     client = WordServerClient()
@@ -140,12 +141,8 @@ def save_guideline(guideline):
     update_or_append_to_sheets(data_to_write)
 
 
-def display_contract():
+def display_contract(contract):
     st.header("Contract")
-
-    contract_link = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
-    # Fetch the contract from the URL link
-    contract = word_server_client(contract_link)
 
     selected_sources = st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"]
 
@@ -348,8 +345,11 @@ def main():
     # col1, col2 = st.columns(2)
 
     # with col1:
-    contract = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
-    display_contract()
+    contract_link = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
+
+    # Fetch the contract from the URL link
+    contract = word_server_client(contract_link)
+    display_contract(contract)
 
     # col2.float()
     with st.sidebar:
