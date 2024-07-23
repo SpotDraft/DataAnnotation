@@ -1,4 +1,4 @@
-
+import os
 
 import streamlit as st
 import pandas as pd
@@ -7,6 +7,63 @@ from streamlit_gsheets import GSheetsConnection
 from streamlit_float import *
 st.set_page_config(page_title="Contract Review Interface", layout="wide")
 conn = st.connection("gsheets", type=GSheetsConnection)
+import json
+
+SD_WORD_SERVER_URL = str(
+    os.environ.get(
+        "SD_WORD_SERVER_URL", "http://word-server-simple-grpc-service.dev.spotdraft.com"
+    )
+)
+
+
+class WordServerClient:
+    """
+    A client class to interact with the wordserver server and convert docx files to text.
+    """
+    def __init__(self, sd_word_server_url: str = SD_WORD_SERVER_URL) -> None:
+        self.sd_word_server_url = sd_word_server_url
+
+    def convert_file(self, file_content: bytes):
+
+        file_content = self.accept_track_changes(file_content)
+        paragraphs = self.segment_text(file_content)
+        document_text = self.preprocess_text(
+            "\n".join(
+                [
+                    para_obj["paragraph_text"]
+                    for para_obj in paragraphs
+                    if para_obj["paragraph_text"]
+                ]
+            )
+        )
+        return document_text
+
+    def accept_track_changes(self, file_content: bytes) -> bytes:
+        path = "api/numbering/accept-track-changes"
+        response = requests.post(
+            os.path.join(self.sd_word_server_url, path),
+            files={"file": file_content},
+        )
+        response.raise_for_status()
+        return response.content
+
+    def segment_text(self, file_content: bytes) -> list:
+        path = "api/numbering/segmenter"
+        response = requests.post(
+            os.path.join(self.sd_word_server_url, path),
+            files={"file": file_content},
+        )
+        response.raise_for_status()
+        return json.loads(response.text)
+
+    def preprocess_text(self, converted_text: str) -> str:
+        return converted_text
+
+@st.cache_data
+def word_server_client(file_url):
+    client = WordServerClient()
+    file_content = requests.get(file_url).content
+    return client.convert_file(file_content)
 
 
 def initialize_guideline(guideline):
@@ -83,16 +140,13 @@ def save_guideline(guideline):
     ]
     update_or_append_to_sheets(data_to_write)
 
-@st.cache
-def get_file_content(file_url):
-    return requests.get(file_url).text
 
 def display_contract():
     st.header("Contract")
 
     contract_link = st.session_state.guidelines[st.session_state.current_guideline]["contract"]
     # Fetch the contract from the URL link
-    contract = get_file_content(contract_link)
+    contract = word_server_client(contract_link)
 
     selected_sources = st.session_state.guidelines[st.session_state.current_guideline]["selected_sources"]
 
