@@ -106,7 +106,7 @@ def update_or_append_to_sheets(values, worksheet="ReviewResults"):
     guideline_id = values[0]  # Assuming the ID is the first element in values
     if existing_data.empty:
         # Initialize the data frame with the first row
-        existing_data = pd.DataFrame(columns=["id", "guideline", "guideline_quality", "guideline_improvement", "guideline_improvement_other", "status", "reason", "reason_quality", "reason_improvement_other", "comment", "comment_quality", "comment_improvement_other", "selected_sources", "update_clause_text", "update_clause_improvement", "update_clause_improvement_other"])
+        existing_data = pd.DataFrame(columns=["id", "guideline", "guideline_quality", "guideline_improvement", "guideline_improvement_other", "status", "reason", "reason_quality", "reason_improvement", "reason_improvement_other", "comment", "comment_quality", "comment_improvement", "comment_improvement_other", "selected_sources", "update_clause_text", "update_clause_improvement", "update_clause_improvement_other"])
     existing_row = existing_data[existing_data['id'] == guideline_id]
     if len(existing_row) > 0:
         # Update existing row
